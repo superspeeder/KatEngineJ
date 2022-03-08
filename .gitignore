@@ -1,0 +1,9 @@
+# Project exclude paths
+/.gradle/
+/engine/build/
+/engine/build/classes/java/main/
+/sandbox/build/
+/sandbox/build/classes/java/main/
+/testing/
+/logs/
+*.log
