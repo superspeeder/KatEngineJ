@@ -14,7 +14,7 @@ import static org.delusion.katengine.KatEngine.LOGGER;
 
 public class EventDispatcher implements IEventDispatcher {
 
-    private static final int THREAD_COUNT = 10;
+    private static final int THREAD_COUNT = 32;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
 
@@ -101,17 +101,31 @@ public class EventDispatcher implements IEventDispatcher {
     public void stop() {
         LOGGER.info("Stopping Event Dispatcher");
         shuttingDown = true;
-        executor.shutdown();
+        while (notEmpty()) {
+            Thread.onSpinWait();
+        }
         eventThreads.forEach(EventThread::kill);
         synchronized (notificationObj) {
             notificationObj.notifyAll();
         }
+        eventThreads.forEach(EventThread::waitToShutdown);
+//        try {
+//            executor.awaitTermination(1, TimeUnit.SECONDS);
+//        } catch (InterruptedException ignored) {
+//        }
+        executor.shutdown();
         try {
             if (!executor.awaitTermination(15, TimeUnit.SECONDS)) {
                 LOGGER.warn("Event Threads failed to shutdown in a timely manner, trying to force shutdown");
                 executor.shutdownNow();
             }
         } catch (InterruptedException ignored) {
+        }
+    }
+
+    private boolean notEmpty() {
+        synchronized (eventQueue) {
+            return !eventQueue.isEmpty();
         }
     }
 
@@ -129,7 +143,7 @@ public class EventDispatcher implements IEventDispatcher {
 
             try {
                 synchronized (notificationObj) {
-                   notificationObj.wait();
+                   notificationObj.wait(1000);
                 }
             } catch (InterruptedException ignored) {
             }

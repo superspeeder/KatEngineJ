@@ -9,6 +9,7 @@ public abstract class App {
 
     private final EventDispatcher dispatcher;
     private final Ticker clock = new Ticker();
+    protected AppConfig config = new AppConfig();
 
     public App() {
         dispatcher = new EventDispatcher();
@@ -21,27 +22,40 @@ public abstract class App {
 
         internalCreate();
 
-
+        while (isOpen()) {
+            internalUpdate(clock.getTimeSinceLastTickd());
+            clock.tickAt(config.maxFPS);
+        }
 
         internalCleanup();
 
     }
 
-    private void internalCreate() {
-
+    private boolean isOpen() {
+        return clock.getTicks() < 10000;
     }
 
-    private void internalUpdate() {
+    private void internalCreate() {
+        dispatcher.fireImmediately(new AppEvent.Create(this));
+    }
+
+    private void internalUpdate(double dt) {
+        update(dt);
+    }
+
+    protected void postCleanup() {
 
     }
 
     private void internalCleanup() {
+        dispatcher.fireImmediately(new AppEvent.Cleanup(this));
+
         dispatcher.stop();
+
+        postCleanup();
     }
 
-    protected abstract void create();
     protected abstract void update(double dt);
-    protected abstract void cleanup();
 
     public IEventDispatcher getDispatcher() {
         return dispatcher;
